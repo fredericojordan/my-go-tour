@@ -57,12 +57,20 @@ func main() {
 func render_progress(context *gin.Context) {
 	progress_str := context.Param("progress")
 
-	if progress, err := strconv.ParseInt(progress_str, 10, 32); err == nil {
-		context.Header("Content-Type", "image/svg+xml")
-		context.String(http.StatusOK, render_svg(int(progress)))
-	} else {
-		context.JSON(http.StatusBadRequest, gin.H{"detail": err})
+	progress, err := strconv.ParseInt(progress_str, 10, 32)
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
 	}
+
+	text, err := render_svg(int(progress))
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
+	}
+
+	context.Header("Content-Type", "image/svg+xml")
+	context.String(http.StatusOK, text)
 }
 
 func progress_color(progress int) string {
@@ -75,7 +83,7 @@ func progress_color(progress int) string {
 	return "#5cb85c"
 }
 
-func render_svg(progress int) string {
+func render_svg(progress int) (string, error) {
 
 	params := template_params{
 		Progress:       progress,
@@ -86,14 +94,14 @@ func render_svg(progress int) string {
 	prog_template, err := template.New("progress").Parse(progress_template)
 
 	if err != nil {
-		return err.Error()
+		return "", err
 	}
 
 	buffer := new(bytes.Buffer)
 
 	if err := prog_template.Execute(buffer, params); err != nil {
-		return err.Error()
+		return "", err
 	}
 
-	return buffer.String()
+	return buffer.String(), nil
 }
